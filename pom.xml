@@ -18,6 +18,8 @@
   <properties>
     <nuxeo.skip.enforcer>true</nuxeo.skip.enforcer>
     <nuxeo.target.version>[11.4,]</nuxeo.target.version>
+    <!-- needed for private package selection on Studio side -->
+    <nuxeo.target.platform>server-11.4.*</nuxeo.target.platform>
     <sample.common.package.version>2.0</sample.common.package.version>
     <studio.project.version>0.0.0-SNAPSHOT</studio.project.version>
     <skipDocker>false</skipDocker>
