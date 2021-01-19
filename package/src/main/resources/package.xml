@@ -4,7 +4,7 @@
   <description>
     <p>Sample Vertical Package for SUPINT-1828 Tests</p>
   </description>
-  <vendor>Customer Company</vendor>
+  <vendor>Nuxeo</vendor>
   <installer restart="true" />
   <uninstaller restart="true" />
   <nuxeo-validation>none</nuxeo-validation>
@@ -18,12 +18,6 @@
   <license-url />
   <visibility>DEV</visibility>
   <dependencies>
-    <!-- either depend on Studio packages for this package use case (in which case vertical studio jars should not be embedded in this package) -->
-    <!--
-    <package>nuxeo-common-test-projec:@STUDIO_COMMON_PROJECT_VERSION@</package>
-    <package>nuxeo-veritcal-test:@STUDIO_PROJECT_VERSION@</package>
-    -->
-    <!-- or depend on the common package pushed to the marketplace and keep the embedded studio jar -->
     <package>nuxeo-sample-common-package:@SAMPLE_COMMON_PACKAGE_VERSION@</package>
   </dependencies>
 </package>

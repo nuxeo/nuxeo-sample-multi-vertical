@@ -44,6 +44,11 @@ void getNuxeoVersion(version) {
   return version
 }
 
+void replacePomProperty(name, value) {
+  // only replace the first occurrence
+  sh("perl -i -pe '!\$x && s|<${name}>.*?</${name}>|<${name}>${value}</${name}>| && (\$x=1)' pom.xml")
+}
+
 void getMavenReleaseOptions(Boolean skipTests) {
   def options = ' '
   if (skipTests) {
@@ -68,6 +73,8 @@ pipeline {
     string(name: 'NEXT_VERSION', defaultValue: '', description: 'Next version (next minor version if unset)')
     string(name: 'STUDIO_PROJECT_VERSION', defaultValue: '', description: 'Version of the Studio project dependency (unchanged if unset). Use keywords `MAJOR`, `MINOR` or `PATCH` for a release to be performed automatically')
     string(name: 'NEXT_STUDIO_PROJECT_VERSION', defaultValue: '', description: 'Next version of the Studio project version dependency (unchanged if unset)')
+    string(name: 'COMMON_VERSION', defaultValue: '', description: 'Version of the Common Sample package dependency (unchanged if unset)')
+    string(name: 'NEXT_COMMON_VERSION', defaultValue: '', description: 'Next version of the Common Sample package dependency (unchanged if unset)')
     string(name: 'NUXEO_VERSION', defaultValue: '', description: 'Version of the Nuxeo Server dependency (unchanged if unset)')
     booleanParam(name: 'NUXEO_VERSION_IS_PROMOTED', defaultValue: true, description: 'Uncheck if releasing a RC version, against a non-promoted Nuxeo build')
     string(name: 'NEXT_NUXEO_VERSION', defaultValue: '', description: 'Next version of the Nuxeo Server dependency (unchanged if unset)')
@@ -81,7 +88,6 @@ pipeline {
     RELEASE_VERSION = getReleaseVersion(params.RELEASE_VERSION, CURRENT_VERSION)
     MAVEN_ARGS = '-B -nsu -Prelease'
     MAVEN_RELEASE_OPTIONS = getMavenReleaseOptions(params.SKIP_TESTS)
-    MAVEN_SKIP_ENFORCER = ' -Dnuxeo.skip.enforcer=true'
     CONNECT_PROD_URL = 'https://connect.nuxeo.com/nuxeo'
     STUDIO_PROJECT_RELEASE_URL = 'https://connect.nuxeo.com/nuxeo/site/studio/v2/project/nuxeo-vertical-test/releases'
     VERSION = "${RELEASE_VERSION}"
@@ -105,6 +111,9 @@ pipeline {
           Studio project version:     '${params.STUDIO_PROJECT_VERSION}'
           Next Studio project version:'${params.NEXT_STUDIO_PROJECT_VERSION}'
 
+          Common package version:     '${params.COMMON_VERSION}'
+          Next Common package version:'${params.NEXT_COMMON_VERSION}'
+
           Nuxeo version:              '${params.NUXEO_VERSION}'
           Nuxeo version is promoted?  '${params.NUXEO_VERSION_IS_PROMOTED}'
           Next Nuxeo version:         '${params.NEXT_NUXEO_VERSION}'
@@ -124,6 +133,7 @@ pipeline {
             echo "Aborting release with message: ${message}"
             error(currentBuild.description)
           }
+          currentBuild.description = "Releasing version ${RELEASE_VERSION}"
         }
       }
     }
@@ -164,11 +174,10 @@ pipeline {
               """
             }
             if (!params.NUXEO_VERSION.isEmpty()) {
-              sh """
-                # nuxeo version
-                # only replace the first <version> occurrence
-                perl -i -pe '!\$x && s|<version>.*?</version>|<version>${params.NUXEO_VERSION}</version>| && (\$x=1)' pom.xml
-              """
+              replacePomProperty('version', params.NUXEO_VERSION)
+            }
+            if (!params.COMMON_VERSION.isEmpty()) {
+              replacePomProperty('sample.common.package.version', params.COMMON_VERSION)
             }
             def studioVersion = "${params.STUDIO_PROJECT_VERSION}".trim()
             if (!studioVersion.isEmpty()) {
@@ -197,15 +206,12 @@ pipeline {
               ----------------------------------------
               Replace Studio Project Version: ${studioReleaseVersion}
               ----------------------------------------"""
-              sh """
-                # replace studio project version
-                perl -i -pe '!\$x && s|<studio.project.version>0.0.0-SNAPSHOT</studio.project.version>|<studio.project.version>${studioReleaseVersion}</studio.project.version>| && (\$x=1)' pom.xml
-              """
+              replacePomProperty('studio.project.version', studioReleaseVersion)
             }
 
             sh """
               # project version
-              mvn ${MAVEN_ARGS} ${MAVEN_SKIP_ENFORCER} versions:set -DnewVersion=${RELEASE_VERSION} -DgenerateBackupPoms=false
+              mvn ${MAVEN_ARGS} versions:set -DnewVersion=${RELEASE_VERSION} -DgenerateBackupPoms=false
             """
           }
         }
@@ -265,7 +271,7 @@ pipeline {
           ----------------------------------------
           Deploy Maven Artifacts
           ----------------------------------------"""
-          sh "mvn ${MAVEN_ARGS} ${MAVEN_SKIP_ENFORCER} -DskipTests deploy"
+          sh "mvn ${MAVEN_ARGS} -DskipTests deploy"
         }
       }
     }
@@ -286,7 +292,7 @@ pipeline {
             sh """
               PACKAGES_TO_UPLOAD="packages/nuxeo-*-package/target/nuxeo-*-package*.zip"
               for file in \$PACKAGES_TO_UPLOAD ; do
-                curl --fail -i -u "$CONNECT_PASS" -F package=@\$(ls \$file) "$CONNECT_PROD_URL"/site/marketplace/upload?batch=true&orgId=nuxeo&restrictedToOrgs=nuxeo;
+                curl --fail -i -u "$CONNECT_PASS" -F package=@\$(ls \$file) "$CONNECT_PROD_URL""/site/marketplace/upload?batch=true&orgId=nuxeo&restrictedToOrgs=nuxeo" ;
               done
             """
           }
@@ -317,17 +323,15 @@ pipeline {
             }
             def nextNuxeoVersion = "${params.NEXT_NUXEO_VERSION}"
             if (!nextNuxeoVersion.isEmpty()) {
-              sh """
-                # only replace the first <version> occurrence
-                perl -i -pe '!\$x && s|<version>.*?</version>|<version>${nextNuxeoVersion}</version>| && (\$x=1)' pom.xml
-              """
+              replacePomProperty('version', nextNuxeoVersion)
+            }
+            def nextCommonVersion = "${params.NEXT_COMMON_VERSION}"
+            if (!nextCommonVersion.isEmpty()) {
+              replacePomProperty('sample.common.package.version', nextCommonVersion)
             }
             def nextStudioVersion = "${params.NEXT_STUDIO_PROJECT_VERSION}"
             if (!nextStudioVersion.isEmpty()) {
-              sh """
-                # put back studio snapshot version
-                perl -i -pe '!\$x && s|<studio.project.version>.*?</studio.project.version>|<studio.project.version>${nextStudioVersion}</studio.project.version>| && (\$x=1)' pom.xml
-              """
+              replacePomProperty('studio.project.version', nextStudioVersion)
             }
 
             def message = "Post release ${RELEASE_VERSION}, update ${CURRENT_VERSION} to ${nextVersion}"
@@ -336,10 +340,11 @@ pipeline {
             }
             sh """
               # project version
-              mvn ${MAVEN_ARGS} ${MAVEN_SKIP_ENFORCER} versions:set -DnewVersion=${nextVersion} -DgenerateBackupPoms=false
+              mvn ${MAVEN_ARGS} versions:set -DnewVersion=${nextVersion} -DgenerateBackupPoms=false
 
               git commit -a -m "${message}"
             """
+            currentBuild.description = "Released version ${RELEASE_VERSION}"
 
             if (env.DRY_RUN != "true") {
               sh """
