@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.nuxeo</groupId>
     <artifactId>nuxeo-parent</artifactId>
-    <version>11.4</version>
+    <version>2021.0</version>
   </parent>
 
   <groupId>org.nuxeo.sample</groupId>
@@ -16,13 +16,10 @@
   <packaging>pom</packaging>
 
   <properties>
-    <nuxeo.skip.enforcer>true</nuxeo.skip.enforcer>
-    <nuxeo.target.version>[11.4,]</nuxeo.target.version>
-    <!-- needed for private package selection on Studio side -->
-    <nuxeo.target.platform>server-11.4.*</nuxeo.target.platform>
+    <nuxeo.target.version>2021</nuxeo.target.version>
     <sample.common.package.version>2.0</sample.common.package.version>
     <studio.project.version>0.0.0-SNAPSHOT</studio.project.version>
-    <skipDocker>false</skipDocker>
+    <nuxeo.skip.enforcer>true</nuxeo.skip.enforcer>
   </properties>
 
   <profiles>
